@@ -226,33 +226,25 @@ compute.att_gt <- function(dp) {
         #-----------------------------------------------------------------------------
         # code for actually computing att(g,t)
         #-----------------------------------------------------------------------------
-
-        if (inherits(est_method,"function")) {
-          # user-specified function
-          attgt <- est_method(y1=Ypost, y0=Ypre,
-                              D=G,
-                              covariates=covariates,
-                              i.weights=w,
-                              inffunc=TRUE)
-        } else if (est_method == "ipw") {
-          # inverse-probability weights
-          attgt <- DRDID::std_ipw_did_panel(Ypost, Ypre, G,
-                                            covariates=covariates,
-                                            i.weights=w,
-                                            boot=FALSE, inffunc=TRUE)
-        } else if (est_method == "reg") {
-          # regression
-          attgt <- DRDID::reg_did_panel(Ypost, Ypre, G,
-                                        covariates=covariates,
-                                        i.weights=w,
-                                        boot=FALSE, inffunc=TRUE)
-        } else {
-          # doubly robust, this is default
-          attgt <- DRDID::drdid_panel(Ypost, Ypre, G,
-                                      covariates=covariates,
-                                      i.weights=w,
-                                      boot=FALSE, inffunc=TRUE)
+        setup_est_method <- list(
+          y1 = Ypost, y0 = Ypre, d = G,
+          cov = covariates, i_w = w
+        )
+        if(inherits(est_method, 'function')){
+          estimate_func <- est_method
+        }else if(est_method == 'ipw'){
+          estimate_func <- DRDID::std_ipw_did_panel
+        }else if(est_method == 'reg'){
+          estimate_func <- DRDID::reg_did_panel
+        }else{
+          estimate_func <- DRDID::drdid_panel
         }
+
+        attgt <- estimate_func(
+          y1=Ypost, y0=Ypre, D=G,
+          covariates = covariates, i_weights = w,
+          inffunc = T, boot = F
+        )
 
         # adjust influence function to account for only using
         # subgroup to estimate att(g,t)
@@ -286,6 +278,7 @@ compute.att_gt <- function(dp) {
         # num obs. for computing ATT(g,t), have to be careful here
         n1 <- sum(G+C)
         w <- disdat$.w
+
 
         #-----------------------------------------------------------------------------
         # checks to make sure that we have enough observations
@@ -321,40 +314,29 @@ compute.att_gt <- function(dp) {
         #-----------------------------------------------------------------------------
         # code for actually computing att(g,t)
         #-----------------------------------------------------------------------------
+        setup_est_method <- list(
+          y = Y,
+          post = post,
+          d = G,
+          cov = covariates,
+          i_w = w
+        )
 
-        if (inherits(est_method, "function")) {
-          # user-specified function
-          attgt <- est_method(y=Y,
-                              post=post,
-                              D=G,
-                              covariates=covariates,
-                              i.weights=w,
-                              inffunc=TRUE)
-        } else if (est_method == "ipw") {
-          # inverse-probability weights
-          attgt <- DRDID::std_ipw_did_rc(y=Y,
-                                         post=post,
-                                         D=G,
-                                         covariates=covariates,
-                                         i.weights=w,
-                                         boot=FALSE, inffunc=TRUE)
-        } else if (est_method == "reg") {
-          # regression
-          attgt <- DRDID::reg_did_rc(y=Y,
-                                     post=post,
-                                     D=G,
-                                     covariates=covariates,
-                                     i.weights=w,
-                                     boot=FALSE, inffunc=TRUE)
-        } else {
-          # doubly robust, this is default
-          attgt <- DRDID::drdid_rc(y=Y,
-                                   post=post,
-                                   D=G,
-                                   covariates=covariates,
-                                   i.weights=w,
-                                   boot=FALSE, inffunc=TRUE)
+        if(inherits(est_method, 'function')){
+          estimate_func <- est_method
+        }else if(est_method == 'ipw'){
+          estimate_func <- DRDID::std_ipw_did_rc
+        }else if(est_method == 'reg'){
+          estimate_func <- DRDID::reg_did_rc
+        }else{
+          estimate_func <- DRDID::drdid_rc
         }
+        attgt <- estimate_func(
+          y = Y, post = post, D = G,
+          covariates = covariates, i_weights = w,
+          inffunc = T
+        )
+
 
         # n/n1 adjusts for estimating the
         # att_gt only using observations from groups
@@ -399,5 +381,5 @@ compute.att_gt <- function(dp) {
     } # end looping over t
   } # end looping over g
 
-  return(list(attgt.list=attgt.list, inffunc=inffunc))
+  return(list(attgt.list=attgt.list, inffunc=inffunc, setup = setup_est_method))
 }
